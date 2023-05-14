@@ -5,15 +5,8 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_notebook
 version: 1.0
 ---
+Note: This Notebook is explaination of code and the insights I got from the each steps and also summerized each section at the end of the section. 
 
-# 0. Instructions 
-
-*1. Remove the (italicised) guidance text but keep the section headings.*  
-*2. Add as many chunks of R code as required.*  
-*3. Summarise your answer to each section at the top of the section then add descriptions of your analysis plans and explanations of your code and findings.  Please be detailed and where you have made choices explain the rationale for them.*  
-*4. Write your report using RMarkdown.  For guidance see a [helpful blog](https://www.dataquest.io/blog/r-markdown-guide-cheatsheet/#tve-jump-17333da0719) or use the R Markdown cheatsheet which can be accessed from within RStudio by selecting `Help > Cheatsheets > R Markdown Cheat Sheet`.*  
-*5. Your report should be clearly and professionally presented with appropriate use of cited external sources. (5 marks)*  
-*6. It should also be easy to understand, with well-documented code following the principles of literate programming. (5 marks)*  
 
 ```{r}
 #install.packages("tidyverse")  # uncomment to install
@@ -33,12 +26,10 @@ library(vcd)
 
 ## 1.1 Subset the data into the specific dataset allocated
  
-*A description of the data set provided, its contents and which subset you should select is documented in the assessment brief at CS5801-Assessment Brief Template 2022-23.pdf*  
-*Use R code to correctly select the subset of data allocated. (5 marks)*  
 
 ```{r}
 # Assign your student id into the variable SID, for example:
-SID <- 2267302                  # This is an example, replace 2101234 with your actual ID
+SID <- 2267302                  
 SIDoffset <- (SID %% 100) + 1    # Your SID mod 100 + 1
 
 load("house-analysis.RDa")
@@ -51,8 +42,6 @@ mydf <- house.analysis[seq(from=SIDoffset,to=nrow(house.analysis),by=100),]
 
 ## 1.2 Data quality analysis
  
-*Provide a description of a comprehensive plan to assess the quality of the data, and document your findings.  Include all variables/columns (5 marks) from the data set and provide a full implementation (5 marks).  NB even if no data quality issues are identified you should still check and report.*
-
 > Data quality analysis is the process of assessing a data set's quality and locating any issues or errors that might compromise the data's correctness and dependability. Any data analysis effort must take data quality into account since bad data might result in findings that are inaccurate or misleading.(Samuel, 2022)
 
 > To make sure that the data is correct and suitable for its intended purpose, data quality analysis entails locating and fixing these problems. (Samuel, 2022)
@@ -65,7 +54,7 @@ mydf <- house.analysis[seq(from=SIDoffset,to=nrow(house.analysis),by=100),]
   3. Check for missing values: Determine how to handle any missing values in the data. This might entail applying some logical techniques to impute missing values or just discarding data with missing values.(Samuel, 2022)
   4. Check for duplicate values: Verify the data for any duplicate values and make a decision on how to manage them. This can entail retaining the initial values or getting rid of the duplicates.(Samuel, 2022)
 
-###Step 1. Data inspection
+### Step 1. Data inspection
 
 `> We will visually inspect the data in this stage in order to comprehend it and identify any potential problems in the data collection.
 `
@@ -249,8 +238,7 @@ skim(newmydf)  # will help to know more about the data.
 ```
 > Finally, we can conclude that there is almost no discrepancies in our data. 
 
-*List and explain the data quality issues found in 1.2 (5 marks), justify and document the responses made (if any) (5 marks).*
-
+### Data Quality issues
 > The following difficulties can be identified from the analysis above:
 
 > 1. Data inspection: Through data inspection, we looked for any obvious errors. However, we discovered certain variables that R had misinterpreted. As a result, we had used the as.factor() function to alter the variable throughout the data cleaning procedure.
@@ -557,18 +545,14 @@ chisq.test(table.heating)
 
 # 3. Modelling
   
-## 3.1 Explain your analysis plan
-
-*Given the research question (i.e., property price) outline an analysis plan that incorporates/references any findings from the data cleaning (1.3) and EDA (2.2)  (5 marks). *
+## 3.1 My analysis plan
 
 > The objective of this research is to find the best model that can be used to anticipate property prices as accurately as feasible. As a result, it's critical to have a deeper grasp of the data and to prepare it in the optimal manner for future research. Therefore, to prepare our data, we fixed every potential inaccuracy in the data cleaning stage. Then, we carried out exploratory data analysis (EDA). By using visualization, we may learn more about and comprehend the facts on a deeper level. In order to sum up the lessons learned from this evaluation, it is evident that some explanatory variable has a relationship with the variable's price. Additionally, we looked for any interactions or relationships between the various factors.That leads us to the conclusion that the explanatory factors seldom interact. To demonstrate this, we found that various factors, such as the number of rooms, bathrooms, and square footage of the property, had a statistically significant relationship. These findings will thus be useful in our modeling.
 
 > The subsequent strategy would entail reducing the maximal model to the basic model while assessing the model's effectiveness on the provided dataset. Along with accuracy, precision, and recall, this will also provide a comparison of the models to the reference models.
 
 
-## 3.2 Build a model for property price
-*Use R to build a suitable model (5 marks).*  
-*NB Submissions where suitable models do not have good fit due to the nature of the data will not be penalised.*  
+## 3.2 Building a model for property price
 
 ```{r}
 # Maximal  model
@@ -618,9 +602,7 @@ summary(final.model.lm)
 
 > Overall, the findings from the present model and the prior model are comparable, but the residual standard error and R-squared values suggest that the current model may fit the data slightly better. It is unclear if the present model significantly differs from the prior model because the change in the F-statistic is not statistically significant. To ascertain the relative merit and validity of the models, more examination and interpretation of the findings are required.
 
-## 3.3 Critique model using relevant diagnostics
-
-*Offer an interpretation of the model characteristics, goodness of fit and graphical diagnostics (5 marks) for the model built in 3.2. Explain any potential weaknesses (5 marks).*
+## 3.3 Critiquing model using relevant diagnostics
 
 ```{r}
 plot(lm.model8)
@@ -632,9 +614,8 @@ plot(final.model.lm)
 > We can easily observe that all of the first three models are nearly identical by diagnostic graphing of the two models. The standardized residuals vs. leverage graph, however, shows that our final model is better fitted than the previous model.
 
  
-## 3.4 Suggest improvements to your model
+## 3.4 Suggesting improvements to our model
 
-*Based on the findings in 3.2 and 3.3 articulates possible alternative approaches to address them (5 marks).*
 ```{r}
 improved.model1 <- lm(log(price) ~ mq * n_rooms * n_bathrooms * has_terrace * heating + I(mq ^2) + I(n_rooms ^2) + I(n_bathrooms ^2), data = newmydf) #applying log to price only and multiplied all the variables to know the interaction terms
 summary(improved.model1)
@@ -674,10 +655,7 @@ $$log(price)= 8.72985 + 0.53605 \times \text{log(mq)}- 0.26893 \times \text{n_ba
 
 # 4. Extension work
 
-## 4.1 Model the likelihood of a property being furnished (using the is_furnished variable provided).
-
-*Given this second research question (i.e., involving the binary target attribute) provide a plan of analysis based on relevant EDA for this attribute (10 marks). The model is described, explained and critiqued (10 marks).*
-*NB Submissions where suitable models do not have good fit due to the nature of the data will not be penalised.* 
+## 4.1 Modeling the likelihood of a property being furnished.
 
 > In order to prepare our data for modeling, we have begun preparing it in accordance with the requirements for additional analysis and modeling.
 
