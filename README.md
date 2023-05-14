@@ -35,7 +35,7 @@ The repository contains the following files:
 4. **Extension work**: As an additional task, a logistic regression model is built to predict the likelihood of a house being furnished.
 
 ## How to Run the Code
-  To run the code, clone the repository and open CS5801 Coursework Template Proforma.Rmd in RStudio. Ensure that you have the necessary libraries installed. If not, you can install them using the install.packages() function in R.
+  To run the code, clone the repository and open House-Price-Prediction-Analysis.Rmd in RStudio. Ensure that you have the necessary libraries installed. If not, you can install them using the install.packages() function in R.
 
 
 
