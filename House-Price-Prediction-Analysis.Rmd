@@ -1,0 +1,734 @@
+---
+title: "Quantitative Data Analysis"
+author: "2267302"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_notebook
+version: 1.0
+---
+
+# 0. Instructions 
+
+*1. Remove the (italicised) guidance text but keep the section headings.*  
+*2. Add as many chunks of R code as required.*  
+*3. Summarise your answer to each section at the top of the section then add descriptions of your analysis plans and explanations of your code and findings.  Please be detailed and where you have made choices explain the rationale for them.*  
+*4. Write your report using RMarkdown.  For guidance see a [helpful blog](https://www.dataquest.io/blog/r-markdown-guide-cheatsheet/#tve-jump-17333da0719) or use the R Markdown cheatsheet which can be accessed from within RStudio by selecting `Help > Cheatsheets > R Markdown Cheat Sheet`.*  
+*5. Your report should be clearly and professionally presented with appropriate use of cited external sources. (5 marks)*  
+*6. It should also be easy to understand, with well-documented code following the principles of literate programming. (5 marks)*  
+
+```{r}
+#install.packages("tidyverse")  # uncomment to install
+#install.packages("mlr")
+#pacman:: p_load(pacman, rio, tidyverse) 
+library(validate)
+library(tidyverse)
+library(ggplot2)
+library(mlr)
+library(skimr)
+library(validate)
+library(vcd)
+```
+
+
+# 1. Organise and clean the data
+
+## 1.1 Subset the data into the specific dataset allocated
+ 
+*A description of the data set provided, its contents and which subset you should select is documented in the assessment brief at CS5801-Assessment Brief Template 2022-23.pdf*  
+*Use R code to correctly select the subset of data allocated. (5 marks)*  
+
+```{r}
+# Assign your student id into the variable SID, for example:
+SID <- 2267302                  # This is an example, replace 2101234 with your actual ID
+SIDoffset <- (SID %% 100) + 1    # Your SID mod 100 + 1
+
+load("house-analysis.RDa")
+# Now subset the housing data set
+# Pick every 100th observation starting from your offset
+# Put into your data frame named mydf (you can rename it)
+mydf <- house.analysis[seq(from=SIDoffset,to=nrow(house.analysis),by=100),]
+```
+
+
+## 1.2 Data quality analysis
+ 
+*Provide a description of a comprehensive plan to assess the quality of the data, and document your findings.  Include all variables/columns (5 marks) from the data set and provide a full implementation (5 marks).  NB even if no data quality issues are identified you should still check and report.*
+
+> Data quality analysis is the process of assessing a data set's quality and locating any issues or errors that might compromise the data's correctness and dependability. Any data analysis effort must take data quality into account since bad data might result in findings that are inaccurate or misleading.(Samuel, 2022)
+
+> To make sure that the data is correct and suitable for its intended purpose, data quality analysis entails locating and fixing these problems. (Samuel, 2022)
+
+> To conduct a data quality analysis, we need to perform the following steps:
+
+
+> 1. Data inspection: Visually inspect the data to spot any evident mistakes or discrepancies. Searching for missing numbers, inaccurate data types, or unexpected values are a few examples of this.(Samuel, 2022)
+  2. Check for errors and inconsistencies: Identify errors and inconsistencies in the data using a combination of statistical and visual approaches. This will entail making data charts, looking at summary statistics, and looking for outliers.(Samuel, 2022)
+  3. Check for missing values: Determine how to handle any missing values in the data. This might entail applying some logical techniques to impute missing values or just discarding data with missing values.(Samuel, 2022)
+  4. Check for duplicate values: Verify the data for any duplicate values and make a decision on how to manage them. This can entail retaining the initial values or getting rid of the duplicates.(Samuel, 2022)
+
+###Step 1. Data inspection
+
+`> We will visually inspect the data in this stage in order to comprehend it and identify any potential problems in the data collection.
+`
+```{r}
+head(mydf,10)
+tail(mydf, 10)
+View(mydf)
+```
+
+> From this, it can be interpreted that there are 11 variables in which `price` is value of property, `mq` is the total area of the property, `floor` is number of floor, `n_rooms` is number of rooms, `n_bathrooms` is number of bathrooms, `has_terrace` is depicting the property includes terrace or not, `has_alarm` depicts that it include alarm or not, `heating` denotes type of heating  particular property, `has_air_conditioning` denotes that it have air conditioning or not, `has_parking` denotes that it have parking or not and  `is_furnished` answer the question that property is furnished or not.
+
+
+> To know the number of variables and values we need to use dim() function
+
+```{r}
+dim(mydf)
+``` 
+> There are total 904 rows and 12 variables.
+
+
+```{r}
+summary(mydf)
+```
+> The summary() function provides the range, average, and median of the continuous variables and counts the categorical variables. However, some of the variables are interpreted incorrectly by R. So, it will be fixed in the data cleaning process.
+
+> Here, we will create a set of rules that our dataset must adhere to.
+
+```{r}
+property.rules <- validator(okprice = price > 0,                  # Defining rules and stored it in `property.rules` variable
+                           okmq = mq >= 10,                       # Area less than 10 is not possible
+                           okfloor= floor > 0,                    # Number of floors is at least 1
+                           okrooms = n_rooms > 0,                 # Number of rooms is at least 1
+                           okbathrooms = n_bathrooms >= 0,        # Number of bathrooms cannot be negative. 
+                           okterrace = is.element(has_terrace, c(0,1)), # no values other than 0,1 (0= No, 1 = Yes)
+                           okalarm = is.element(has_alarm, (c(0,1))),  # no values other than 0,1 (0= No, 1 = Yes)
+                           okheating = is.element(heating, c("autonomous","other")),  # no values other than "Autonomous" and "other"
+                           okac = is.element(has_air_conditioning, c(0,1)),      # no values other than 0,1 (0= No, 1 = Yes)
+                           okparking = is.element(has_parking, c(0,1)),          # no values other than 0,1 (0= No, 1 = Yes)
+                           okfurnished = is.element(is_furnished, c(0,1)))       # no values other than 0,1 (0= No, 1 = Yes)
+```
+
+> Now, the confront function will pass each value through the rules we made for the data set. Then, summarizing the data will tell how many values fail the test.
+
+```{r}
+property.check <- confront(mydf, property.rules) # Storing the results in property.check after confronting with the rules
+summary(property.check)
+```
+
+> This makes it simple for us to deduce that our data set has a few small inaccuracies.
+
+> To visualize the inaccuracies present in our data set, we need to plot the graph of our results stored in `property.check` variable.
+
+```{r}
+plot(property.check) 
+```
+> This visualization also shows total 3 failures occured while checking the data. So our next step will be to clean and transform the data.
+
+
+```{r}
+newmydf <- mydf  #it can be retrieved at any time without losing any of its original information.
+```
+
+### Step 2. Transforming my data
+
+Starting now, let's convert a few of the required variables to binary.
+
+```{r}
+newmydf$has_terrace <- as.factor(newmydf$has_terrace)      # as.factor will convert the numerical data into categorical
+newmydf$has_alarm <- as.factor(newmydf$has_alarm)
+newmydf$has_air_conditioning <- as.factor(newmydf$has_air_conditioning)
+newmydf$has_parking <- as.factor(newmydf$has_parking)
+newmydf$is_furnished <- as.factor(newmydf$is_furnished)
+```
+
+> After converting all the required variables. we'll cross check the R's interpretation.
+
+> NB: The `heating` variable was not converted to binary.Because when a variable is in factors format, R might not be able to modify the level names.
+
+```{r}
+summary(newmydf) #To confirm that our variable is interpreted correctly.
+```
+
+> Finally, we got our required variable changed to categorical.   
+
+
+## 1.3 Data cleaning  
+
+### Step 3. Checking missingness and errors
+
+> To confirm, we need to use is.na() function to detect number of missing values in our data set. 
+
+```{r}
+paste("The total number of missing values in our data:", sum(is.na(newmydf)))
+
+colSums(is.na(newmydf)) # Total missing values in every column 
+```
+
+> Finally, our data set did not contain any missing values.
+
+> As from the data quality checking step, we got some failures from `heating`, `n_rooms` and `mq` column. So in this step we are going to resolve all the quality issues by the following transformations.
+
+```{r}
+str(newmydf) # To recheck the structure of data
+```
+> Starting from `heating` column, as discussed above, it should have to values in this varaible. So to check the number of values present in, we will use table() function.
+
+```{r}
+table(newmydf$heating)
+```
+> Therefore, there is only one row with a spelling error. Apart from that, everything is alright. I'm altering "other" to "Other" and "Autonomous" to "Auto" just for the sake of simplicity.
+
+```{r}
+newmydf[newmydf == "autonomous"] <- "Auto"    # Changing the names.
+newmydf[newmydf == "autonamous"] <- "Auto"
+newmydf[newmydf == "other"] <- "Other"
+table(newmydf$heating)  # To check
+```
+
+> Now, we can convert the `heating` column into factors.
+
+```{r}
+newmydf$heating <- as.factor(newmydf$heating)
+```
+
+> Secondly, the data quality check revealed that there is a problem with the `n rooms` column. The table() function allows us to explore the column in detail.
+
+```{r}
+table(newmydf$n_rooms)      # To identify number of unique values
+```
+> Since there cannot be a negative number of rooms, this must be eliminated or imputed by another value.
+
+> Instead of deleting the row completely, we should impute the value in place of the implausible value. Because each row of data is important to making our model as good as possible, However, it is necessary to impute the value as close as possible to the real value. We must thus verify the mean and median of the "n rooms" column to accomplish this.
+
+```{r}
+mean(newmydf$n_rooms)
+```
+> However, since the number of rooms cannot be expressed in decimal, mean would not be the best choice. 
+
+```{r}
+median(newmydf$n_rooms)
+```
+> Therefore, the median would be the best option to impute in our data, and this won't lead to biassed results. The best method to directly impute the median to our data set would be to use the Replace function.
+
+```{r}
+newmydf$n_rooms <- replace(newmydf$n_rooms, newmydf$n_rooms < 0, median(newmydf$n_rooms) )
+```
+
+```{r}
+table(newmydf$n_rooms) # Verifying the effectiveness of our imputation
+```
+
+> Finally, there are no negative values in `n_rooms` column. 
+
+> Let's look at the data once more to see if there are any differences.
+
+```{r}
+summary(newmydf)
+```
+  
+> Lastly, one value in the "mq" column failed our test as well, thus it is crucial to address this problem as well.
+
+```{r}
+table(newmydf$mq) # utilizing the table() method to determine the implausible value in our data.
+```
+
+> We only received one value, which is zero, while looking at the outcome. Since the property cannot have a zero area, That value must be removed. As the property's price is 11,400, which is excessive for the neighborhood, considering the values, it is priced. Deleting the entire row is therefore necessary.
+
+```{r}
+newmydf <- subset(newmydf, mq > 0) # Selecting the rows with area > 0 
+```
+
+
+```{r}
+table(newmydf$mq) # Rechecking our data set 
+``` 
+> Now, we can see that there is not value equal to zero.
+
+
+```{r}
+skim(newmydf)  # will help to know more about the data.
+```
+> Finally, we can conclude that there is almost no discrepancies in our data. 
+
+*List and explain the data quality issues found in 1.2 (5 marks), justify and document the responses made (if any) (5 marks).*
+
+> The following difficulties can be identified from the analysis above:
+
+> 1. Data inspection: Through data inspection, we looked for any obvious errors. However, we discovered certain variables that R had misinterpreted. As a result, we had used the as.factor() function to alter the variable throughout the data cleaning procedure.
+2. Check for mistakes and inconsistencies: In this phase, we created certain criteria that should be applied to the data. Any data that does not adhere to our statistical criteria will draw attention to the errors in the table. Additionally, we displayed the quality-checking graph, via which we could see the faults and learn more about them.
+3. Check for missing values: Fortunately, there were no missing values in the quality checking graph. Therefore, it is not necessary to remove or impute any values to the data.
+4. Check for duplicate values: Visual inspection revealed no instances of duplicate values.
+
+> The few problems we did discover are mostly either improbable values or any misspelled terms. As a result, using statistical techniques, we have imputed or discarded the numbers in accordance with the needs.
+
+# 2. Exploratory Data Analysis (EDA)
+
+## 2.1 EDA plan
+
+*Outline a suitable plan to explore, describe and visualise your data. (5 marks)*  
+
+> This process involves evaluating and summarizing data to comprehend its key features and spot trends and linkages. EDA is an iterative process that involves examining the data and learning about its structure and distribution using a number of graphical and statistical approaches.(Patil, 2018)
+
+> EDA is a crucial first stage in the analysis of data since it aids in locating any possible problems or abnormalities in the data and guides the selection of additional statistical studies. It is frequently used to evaluate the distribution and correlations between variables, as well as to spot trends, patterns, and outliers in the data. (Patil, 2018)
+
+> The following are the measures we'll take in our EDA:
+
+> 1. Data visualization: The use of charts such as histograms, scatter plots, and box plots to show data and find patterns and trends.(Patil, 2018)
+
+> 2. Data transformation: Applying changes to the data to enhance the distribution or make it more analytically tractable, such as log transformation or Box-Cox transformation.(Patil, 2018)
+
+> 4. Testing hypotheses: Using statistical procedures to assess if there is a significant link or difference between variables in the data.
+(Patil, 2018)
+Our research question requires that it determine the relationship between various factors and price. It is crucial to identify the factors influencing the property's pricing. It ultimately helped to estimate the property's valuation.
+
+> To achieve that, first make sure the data is normally distributed because we'll be using a multiple linear regression modeling approach. It needs to plot a histogram for that.
+
+```{r}
+ggplot(newmydf, aes(log(price))) + ggtitle("Price of Property Histogram") + geom_histogram(bins = 20, color="Blue", fill="lightblue") + xlab("Price Range")  # Applying log #Density line remaining here
+ggplot(newmydf, aes(log(mq))) + ggtitle("Area of Property Histogram") + geom_histogram(bins = 20, color="red", fill="orange") + xlab("Area Range") +geom_density()
+ggplot(newmydf, aes(floor)) + ggtitle("Number of Floor Histogram") + geom_histogram(bins = 10, color="darkgreen", fill="lightgreen") + xlab("Number of Floors")
+ggplot(newmydf, aes(n_rooms)) + ggtitle("Number of Rooms Histogram") + geom_histogram(bins = 10, color="red", fill="pink") + xlab("Number of Rooms")
+ggplot(newmydf, aes(n_bathrooms)) + ggtitle("Number of Bathrooms Histogram") + geom_histogram(bins = 20, color="Blue", fill="lightblue") + xlab("Number of Bathrooms")
+```
+> Price and Area needed to be made regularly distributed since, according to the abovementioned visualizations, they were not. So both variables were subjected to log transformation.
+
+> Second, the graph of the floor histogram is right-skewed. Because of the extreme numbers at the upper end of the scale, or perhaps because there are outliers.
+
+> Third, the histogram of rooms appears to be slightly skewed to the right. Due to the significant prevalence of buildings with three rooms.
+
+> Fourth, the histogram for the number of bathrooms likewise shows a similar right skewedness.
+
+```{r}
+plot(newmydf, panel = panel.smooth)
+```
+> This graphic demonstrates the relationships between all the variables in our dataset. Some of the pattern between property price and area may be seen from this plot. Additionally, it demonstrates a connection between the quantity of bathrooms and rooms. Other than that, it wasn't found to be very beneficial.
+
+```{r}
+# Boxplot for categorical data
+ggplot(newmydf, aes(has_terrace, log(price))) + geom_boxplot(fill="lightblue", color = "blue") + ggtitle("Price vs Terrace") + xlab("Property have terrace or not") + ylab("Price of the Property")
+
+ggplot(newmydf, aes(has_alarm, log(price))) + geom_boxplot(color="red", fill="orange") + ggtitle("Price vs Alarm") + xlab("Property have Alarm or not") + ylab("Price of the Property")
+
+ggplot(newmydf, aes(heating, log(price))) + geom_boxplot(color="darkgreen", fill="lightgreen") + ggtitle("Price vs Type of heater") + xlab("Type of heater") + ylab("Price of the Property")
+
+ggplot(newmydf, aes(has_air_conditioning, log(price))) + geom_boxplot(color="red", fill="pink") + ggtitle("Price vs Air Conditioning") + xlab("Property have AC or not") + ylab("Price of the Property")
+
+ggplot(newmydf, aes(has_parking, log(price))) + geom_boxplot(color="Blue", fill="lightblue") + ggtitle("Price vs Parking") + xlab("Property have Parking or not") + ylab("Price of the Property")
+
+ggplot(newmydf, aes(is_furnished, log(price))) + geom_boxplot(color="darkgreen", fill="lightgreen") + ggtitle("Price vs Furniture") + xlab("Property is furnished or not") + ylab("Price of the Property")
+
+```
+
+> Boxplots provide an overview of the data's distribution as well as any outliers or uncommon observations. Additionally, it can illustrate the relationship between two sets of variables. This will assist us in determining any connections between the classified data. In this case, we are examining the relationship between pricing and other categorical factors like terrace, heating, alarm, air conditioning, parking, and furnishings.
+
+> Overall, it appears that the presence of certain features, such as a terrace, alarm, or parking, may increase the likelihood that a property will be expensive. On the other hand, the presence of certain other features, such as a specific type of heater or air conditioning, does not seem to have a significant effect on the price. However, further testing is needed to confirm these findings and to ensure that the observed differences are statistically significant.
+
+
+```{r}
+aov.terrace <- aov(newmydf$price ~ newmydf$has_terrace)
+summary(aov.terrace)
+```
+
+```{r}
+aov.alarm <- aov(newmydf$price ~ newmydf$has_alarm) # To find that the difference is significance or not
+summary(aov.alarm)
+```
+
+```{r}
+aov.heating <- aov(newmydf$price ~ newmydf$heating)  # To find that the difference is significance or not
+summary(aov.heating)
+```
+
+```{r} 
+aov.ac <- aov(newmydf$price ~ newmydf$has_air_conditioning) # To find that the difference is significance or not
+summary(aov.ac) 
+```
+
+```{r}
+aov.parking <- aov(newmydf$price ~ newmydf$has_parking) # To find that the difference is significance or not
+summary(aov.parking)
+```
+
+```{r}
+aov.furnished <- aov(newmydf$price ~ newmydf$is_furnished) # To find that the difference is significance or not
+summary(aov.furnished)
+```
+
+
+> Hence, from the above testing, it is evident that none of the variable have significant difference. 
+
+
+
+```{r}
+ggplot(newmydf, aes(log(mq), log(price))) + geom_point(size = 2, col= "#00c2ba") + ggtitle("Scatterplot for Price Vs Area of the Properties") + xlab("Area of Properties") + ylab("Price of Properties") + geom_smooth(method = "loess")   #Applying log on both the variable to decrease the scale
+
+ggplot(newmydf, aes(floor, log(price))) + geom_point(size = 2, col= "#08ffa8") + ggtitle("Scatterplot for Price Vs Number of floors in the Properties") + xlab("Number of Floors") + ylab("Price of Properties") + geom_smooth(method = "lm")
+
+ggplot(newmydf, aes(n_rooms, log(price))) + geom_point(size = 2, col= "#00628f") + ggtitle("Scatterplot for Price Vs Number of Rooms in the Properties") + xlab("Number of rooms") + ylab("Price of Properties") + geom_smooth(method = "lm")
+
+ggplot(newmydf, aes(n_bathrooms, log(price))) + geom_point(size = 2, col= "#00cdc6") + ggtitle("Scatterplot for Price Vs Number of Bathrooms in the Properties") + xlab("Number of Bathrooms") + ylab("Price of Properties")  +  geom_smooth(method = "lm")
+
+```
+
+> The scatterplots are the type of graphical summary that are used to visualize the relationship between two numerical variables. Here it would be useful for identifying patterns and trends in the data, and for exploring the relationship between the variables.
+
+> Here, by observing the trends from the graph, it can be said that there is a positive relation between the price and the area of the property. In other words, as the area of the property increases the chances of price to be increase is high. However, it is difficult to see relation with the other variables in successive graphs. 
+
+
+```{r}
+vdf <- newmydf[, 2:6]  #vdf for creating visualization 
+view(vdf)
+```
+
+> In order to observe the relationship with the boxplot, we must turn the `n rooms`, `n bathrooms`, and `floors` into factors. The scatterplot makes it difficult to see the pattern clearly.
+
+```{r}
+vdf$floor <- as.factor(vdf$floor)
+vdf$n_bathrooms <- as.factor(vdf$n_bathrooms)
+vdf$n_rooms <- as.factor(vdf$n_rooms)
+```
+
+```{r}
+table(vdf$floor)
+table(vdf$n_bathrooms)
+table(vdf$n_rooms)
+```
+> Now, to find the relation we need to make boxplots from this variables.
+
+```{r}
+ggplot(vdf, aes(floor, log(price), fill = floor)) + ggtitle("Boxplot for Price Vs Number of Floors") + xlab("Number of Floors") + ylab("Price") + geom_boxplot()  + theme_classic()
+
+ggplot(vdf, aes(n_rooms, log(price), fill = n_rooms)) + ggtitle("Boxplot for Price Vs Number of Rooms") + xlab("Number of Rooms") + ylab("Price") + geom_boxplot()  + theme_classic()
+
+ggplot(vdf, aes(n_bathrooms, log(price), fill = n_bathrooms)) + ggtitle("Boxplot for Price Vs Number of Bathrooms") + xlab("Number of Bathrooms") + ylab("Price") + geom_boxplot()  + theme_classic()
+
+```
+
+> The above graphs make it very evident that there is no correlation between price and the number of floors. But as we can see, the cost is also steadily rising along with the growth in hotel availability. Similar to this, a home gets more expensive as the number of bathrooms grows.
+
+> In order to determine the chance that the property we get is furnished, we must identify a relationship between the `is furnished` variable and the second research question.
+
+```{r}
+
+mosaicplot(newmydf$is_furnished ~ newmydf$has_terrace, 
+           main = "Mosaic Plot for Furnished Vs Terrace", 
+           shade = TRUE, 
+           xlab = "Property Furnished",
+           ylab = "Property have Terrace",
+           las = 1, 
+           border = "chocolate")
+
+mosaicplot(newmydf$is_furnished ~ vdf$floor, 
+           main = "Mosaic Plot for Furnished Vs Number of Floor",
+           shade = TRUE,
+           xlab = "Property Furnished",
+           ylab = "Number of Floor",
+           las = 1, 
+           border = "chocolate")
+
+mosaicplot(newmydf$is_furnished ~ vdf$n_rooms, 
+           main = "Mosaic Plot for Furnished Vs Number of Rooms", 
+           shade = TRUE,
+           xlab = "Property Furnished",
+           ylab = "Number of rooms",
+           las = 1, 
+           border = "chocolate"
+           )
+
+mosaicplot(newmydf$is_furnished ~ vdf$n_bathrooms, 
+           main = "Mosaic Plot for Furnished Vs Number of Bathrooms", 
+           shade = TRUE,
+           xlab = "Property Furnished",
+           ylab = "Number of Bathrooms",
+           las = 1, 
+           border = "chocolate"
+           )
+
+mosaicplot(newmydf$is_furnished ~ newmydf$has_alarm, 
+           main = "Mosaic Plot for Furnished Vs Alarm", 
+           shade = TRUE,
+           xlab = "Property Furnished",
+           ylab = "Has Alarm",
+           las = 1, 
+           border = "chocolate"
+           )
+mosaicplot(newmydf$is_furnished ~ newmydf$has_air_conditioning, 
+           main = "Mosaic Plot for Furnished Vs Air conditioning", 
+           shade = TRUE,
+           xlab = "Property Furnished",
+           ylab = "Have Air Conditioning",
+           las = 1, 
+           border = "chocolate"
+           )
+mosaicplot(newmydf$is_furnished ~ newmydf$has_parking, 
+           main = "Mosaic Plot for Furnished Vs Parking", 
+           shade = TRUE,
+           xlab = "Property Furnished",
+           ylab = " Have Parking",
+           las = 1, 
+           border = "chocolate"
+           )
+mosaicplot(newmydf$is_furnished ~ newmydf$heating, 
+           main = "Mosaic Plot for Furnished Vs Type of Heating System", 
+           shade = TRUE,
+           xlab = "Property Furnished",
+           ylab = "Type of heating",
+           las = 1, 
+           border = "chocolate"
+           )
+
+```
+
+> Here mosaic plot is the graphical summary that is used to display the relationship between two or more categorical variables. It consists of a grid of rectangles, where each rectangle represents the count or proportion of observations in a particular combination of categories.
+
+> According to the aforementioned findings, air conditioning shows some relation with the likelihood of getting the property being furnished. However, others are not showing some evident relation with each other. 
+
+## 2.2 EDA and summary of results  
+
+*Undertake and summarise the findings of your data exploration, particularly with respect to the research questions.  Use appropriate summary statistics (uni- and multi-variate) and visualisations. Provide a concise summary of your findings at the top of this section (10 marks)*
+
+> Considering the first study question, we may conclude that certain of the factors, such as property area, have a positive relationship with our dependent variable, property price. Additionally, the number of rooms and bathrooms affects the rate of change in the price of property.
+
+> Considering the second research question, our dependent variable is `is furnished`. Therefore, it can be inferred from the mosaic plot that there is a substantial relationship between air conditioning and heating. To determine the importance of the association, though, statistical analysis is required.
+
+## 2.3 Additional insights and issues
+
+*Highlight potential further issues or insights uncovered in 2.2.  This might include follow up to findings from your initial EDA.  We accept that the boundary between 2.2 and 2.3 is somewhat arbitrary so use your judgement and maximise good structure and readability. (5 marks)*
+
+> By correlation test we can find the interdependency between the explanatory variables,
+
+```{r}
+only.numeric <- newmydf[,2:6 ] # making subset from 2nd column to 6th column (inclusive). 
+cor.table <- cor(only.numeric)
+cor.table
+```
+
+> From this table we can check the percentage of values correlated with each other. 
+
+> Now to check the significance of the relation it need to be tested by cor.test() function 
+
+```{r}
+cor.test(newmydf$price, newmydf$mq)
+cor.test(newmydf$price, newmydf$floor)
+cor.test(newmydf$price, newmydf$n_rooms)
+cor.test(newmydf$price, newmydf$n_bathrooms)
+```
+
+> Therefore, its obvious to say that floor's relation with price is insignificant and other variables like area, number of rooms and number of bathrooms have significant correlation (numerically).
+
+```{r}
+table.terrace <- table(newmydf$is_furnished, newmydf$has_terrace)
+table.alarm <- table(newmydf$is_furnished, newmydf$has_alarm)
+table.ac <- table(newmydf$is_furnished, newmydf$has_air_conditioning)
+table.parking <- table(newmydf$is_furnished, newmydf$has_parking)
+table.heating <- table(newmydf$is_furnished, newmydf$heating)
+```
+
+```{r}
+table.terrace
+table.alarm
+table.ac
+table.parking
+table.heating
+```
+
+> The hypotheses to test are $H_0:$ There is no relation between both the categorical variable and $H_1:$ There is a relation between both the variable. 
+
+```{r}
+chisq.test(table.terrace)
+```
+
+```{r}
+fisher.test(table.alarm)
+```
+
+```{r}
+chisq.test(table.ac)
+```
+
+```{r}
+fisher.test(table.parking)
+```
+
+```{r}
+chisq.test(table.heating)
+```
+
+> All of the preceding tests show p-values larger than 0.05, meaning that all but one of the variables, specifically air conditioning, cannot disprove the null hypothesis. In this instance, we can rule out the null hypothesis since the variables `is_furnished` and `has_air_conditioning` have a meaningful relationship.
+
+# 3. Modelling
+  
+## 3.1 Explain your analysis plan
+
+*Given the research question (i.e., property price) outline an analysis plan that incorporates/references any findings from the data cleaning (1.3) and EDA (2.2)  (5 marks). *
+
+> The objective of this research is to find the best model that can be used to anticipate property prices as accurately as feasible. As a result, it's critical to have a deeper grasp of the data and to prepare it in the optimal manner for future research. Therefore, to prepare our data, we fixed every potential inaccuracy in the data cleaning stage. Then, we carried out exploratory data analysis (EDA). By using visualization, we may learn more about and comprehend the facts on a deeper level. In order to sum up the lessons learned from this evaluation, it is evident that some explanatory variable has a relationship with the variable's price. Additionally, we looked for any interactions or relationships between the various factors.That leads us to the conclusion that the explanatory factors seldom interact. To demonstrate this, we found that various factors, such as the number of rooms, bathrooms, and square footage of the property, had a statistically significant relationship. These findings will thus be useful in our modeling.
+
+> The subsequent strategy would entail reducing the maximal model to the basic model while assessing the model's effectiveness on the provided dataset. Along with accuracy, precision, and recall, this will also provide a comparison of the models to the reference models.
+
+
+## 3.2 Build a model for property price
+*Use R to build a suitable model (5 marks).*  
+*NB Submissions where suitable models do not have good fit due to the nature of the data will not be penalised.*  
+
+```{r}
+# Maximal  model
+lm.model1 <- lm(price ~ mq + floor + n_rooms + n_bathrooms + has_terrace + has_alarm + heating + has_air_conditioning +has_parking + is_furnished , data = newmydf)      # Maximal Model
+summary(lm.model1)
+
+# Model2
+lm.model2 <- lm(price ~  mq + floor + n_rooms + n_bathrooms + has_terrace + heating + has_air_conditioning + has_parking + is_furnished , data = newmydf)  # 
+summary(lm.model2)
+
+# Model3
+lm.model3 <- lm(price ~  mq + floor + n_rooms + n_bathrooms + has_terrace + heating  + has_parking + is_furnished , data = newmydf)
+summary(lm.model3)
+
+# Model4
+lm.model4 <- lm(price ~  mq  + n_rooms + n_bathrooms + has_terrace + heating + has_parking + is_furnished , data = newmydf)
+summary(lm.model4)
+
+# Model5
+lm.model5 <- lm(price ~  mq  + n_rooms + n_bathrooms + has_terrace + heating + has_parking, data = newmydf)
+summary(lm.model5)
+
+# Model6
+lm.model6 <- lm(price ~  mq  + n_rooms + n_bathrooms + has_terrace + heating , data = newmydf)
+summary(lm.model6)
+
+# Model7
+lm.model7 <- lm(price ~  mq  + n_rooms + n_bathrooms + has_terrace , data = newmydf)
+summary(lm.model7)
+
+# Model8
+lm.model8 <- lm(price ~  mq  + n_bathrooms + has_terrace , data = newmydf)
+summary(lm.model8)
+```
+> Multiple regression helped us arrive at a minimum model. We can see from this model that the multiple R-squared value is 0.2467, which indicates that the model accounts for nearly 25% of the variation in the response variable. 
+
+> Additionally, the F-statistic has a p-value of < 2.2e-16 and is 98.12 on 3 and 899 degrees of freedom. This shows that the model and null model are significantly different from one another and that it is improbable that the observed discrepancies between the two models were the result of chance.
+
+> However, we need to check again by step() function to make our best possible model to predict the price of the property.
+
+```{r}
+final.model.lm <- step(lm.model1)
+summary(final.model.lm)
+```
+
+> The current model's residual standard error is 78810, which is somewhat less than the residual standard error of the prior model (79030). This shows that the current model could have a little better fit with the data than the old model. Additionally, the present model's multiple R-squared value and adjusted R-squared value are both marginally greater than those of the prior model. This shows that the current model could have a little better match with the data than the old model. Additionally, this shows that although the change is not statistically significant, the current model may have matched the data a little bit less well than the prior model did.
+
+> Overall, the findings from the present model and the prior model are comparable, but the residual standard error and R-squared values suggest that the current model may fit the data slightly better. It is unclear if the present model significantly differs from the prior model because the change in the F-statistic is not statistically significant. To ascertain the relative merit and validity of the models, more examination and interpretation of the findings are required.
+
+## 3.3 Critique model using relevant diagnostics
+
+*Offer an interpretation of the model characteristics, goodness of fit and graphical diagnostics (5 marks) for the model built in 3.2. Explain any potential weaknesses (5 marks).*
+
+```{r}
+plot(lm.model8)
+```
+
+```{r}
+plot(final.model.lm)
+```
+> We can easily observe that all of the first three models are nearly identical by diagnostic graphing of the two models. The standardized residuals vs. leverage graph, however, shows that our final model is better fitted than the previous model.
+
+ 
+## 3.4 Suggest improvements to your model
+
+*Based on the findings in 3.2 and 3.3 articulates possible alternative approaches to address them (5 marks).*
+```{r}
+improved.model1 <- lm(log(price) ~ mq * n_rooms * n_bathrooms * has_terrace * heating + I(mq ^2) + I(n_rooms ^2) + I(n_bathrooms ^2), data = newmydf) #applying log to price only and multiplied all the variables to know the interaction terms
+summary(improved.model1)
+```
+
+```{r}
+improved.model2 <- lm(log(price) ~ . -id, data = newmydf) # Maximal model
+final.improved2 <- step(improved.model2) # Using step function to find minimal model
+```
+
+```{r}
+summary(final.improved2) #summary of our steps' model
+```
+
+```{r}
+improved.model3 <- lm(log(price) ~ log(mq) + floor + n_rooms + n_bathrooms + has_terrace + has_alarm + heating + has_air_conditioning + has_parking + is_furnished , data = newmydf) # Maximal model applying log transformation on price and mq variable.
+final.improved3 <- step(improved.model3) #applying step function
+summary(final.improved3) #summary of the model
+```
+
+> The final model (final.improved3) we obtained after experimenting with various modeling approaches is a more better version of the prior best model. As a result of the present model's residual standard error being 0.6201, which is lower than the prior model's residual standard error (78810). This shows that the current model could have a better match with the data than the old model. However, the present model's multiple R-squared value and adjusted R-squared value are both marginally lower than those of the prior model. This implies that the current model may have a little worse fit to the data than the prior model.
+
+> Additionally, the p-value is the same in both models, despite the fact that the F-statistic in the present model is lower than in the prior model. This implies that although the change is not statistically significant, the new model may have a worse fit to the data than the prior model. Therefore, it must be compared using diagnostic plots to ensure that the model has been chosen in its entirety.
+
+
+```{r}
+plot(final.improved3) # plotting the model to compare with previous model 
+```
+
+>From this plot, we can pick the last model(final.improved3) as our final model.
+
+
+> Finally, the final model is: 
+
+$$log(price)= 8.72985 + 0.53605 \times \text{log(mq)}- 0.26893 \times \text{n_bathrooms}  + 0.14560 \times \text{has_terrace} +0.12620 \times \text{heating}$$
+
+
+# 4. Extension work
+
+## 4.1 Model the likelihood of a property being furnished (using the is_furnished variable provided).
+
+*Given this second research question (i.e., involving the binary target attribute) provide a plan of analysis based on relevant EDA for this attribute (10 marks). The model is described, explained and critiqued (10 marks).*
+*NB Submissions where suitable models do not have good fit due to the nature of the data will not be penalised.* 
+
+> In order to prepare our data for modeling, we have begun preparing it in accordance with the requirements for additional analysis and modeling.
+
+> To understand the relationship between the `is_furnished` variable and other categorical data, we generated various mosaic plots using the exploratory data analysis. From this, it can be inferred that the `is_furnished` variable does not exhibit a strong relationship with other specific explanatory factors. The presence of an air conditioning system, however, enhances the possibility that a house will be furnished..
+
+> The subsequent strategy would entail reducing the maximal model to the basic model while assessing the model's effectiveness on the provided dataset. Along with accuracy, precision, and recall, this will also provide a comparison of the models to the reference models.
+
+
+```{r}
+glm.model1 <- glm(is_furnished ~ log(mq) + log(price) + floor + n_rooms + n_bathrooms + has_terrace + has_alarm + heating + has_air_conditioning + has_parking ,data = newmydf, family = "binomial")
+summary(glm.model1)
+```
+
+
+```{r}
+final.glm.model <- step(glm.model1)
+summary(final.glm.model)
+```
+
+
+```{r}
+exp(coef(final.glm.model)) # Odds ratio to know the likelihood of the event
+```
+> Comparing the above two model there is insignificant difference in the improvement of the model. Therefore, we can pick the model concluded from the step() function.
+
+> From the odds ratio, we can conclude that the property which have air conditioning increases the likelihood of property being furnished and parking decreases the likelihood of property being furnished.
+
+> Interpreting the output of odds ratio: 
+Having Air Conditioning system increases the likehood by 2.2 times but having paking decreases the likelihood by 2.592304e-07. 
+
+
+> Finaly model we got from the step function:
+
+
+$$log(\frac{p}{1-p})=-2.9721 + 0.7915 \times \text{has_air_conditioning}- 15.1655 \times \text{has_parking}$$
+We can also use the model to predict the probability of property being furnished using:
+
+```{r}
+#predict the probability of property being furnished from the model
+newmydf$is_furnished <-predict(final.glm.model, type="response")
+head(newmydf,20)
+```
+
+# References  
+
+*Add any references here. NB You can either do this manually or automatically with a `.bib` file (which then must be submitted along with your `.Rmd` file).  See the RMarkdown [documentation](https://bookdown.org/yihui/rmarkdown-cookbook/bibliography.html) for guidance.*  
+
+
+1. GeeksforGeeks. (2021). How to Replace specific values in column in R DataFrame ? [online] Available at: https://www.geeksforgeeks.org/how-to-replace-specific-values-in-column-in-r-dataframe/ [Accessed 30 Dec. 2022].
+
+2. Patil, P. (2018). What is Exploratory Data Analysis? [online] Towards Data Science. Available at: https://towardsdatascience.com/exploratory-data-analysis-8fc1cb20fd15 [Accessed 31 Dec. 2022].
+
+3. Samuel, N. (2022). Data Quality Analysis Simplified: A Comprehensive Guide 101. [online] Learn | Hevo. Available at: https://hevodata.com/learn/data-quality-analysis/ [Accessed 20 Dec. 2022].
+  
